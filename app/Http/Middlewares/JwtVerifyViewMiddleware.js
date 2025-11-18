@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 
 export default function JwtVerifyViewMiddleware(request, response, next) {
 
-    const HEADER_TEXT = "React: Estados globais (Reducers e Contextos)";
+    const HEADER_TEXT = "Aula 12 - Websockets";
     const { token } = request.cookies;
 
     console.log(request.cookies);

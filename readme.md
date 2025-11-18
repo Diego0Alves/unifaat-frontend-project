@@ -1,4 +1,4 @@
-# Aula 11 - React: Estados globais (Reducers e Contextos) <a name="unifaat-frontend-project"></a>
+# Aula 12 - Websockets <a name="unifaat-frontend-project"></a>
 
 ## 📑 Sumário
 

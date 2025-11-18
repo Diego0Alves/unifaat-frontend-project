@@ -5,8 +5,8 @@ import {
     WebSocketStatus,
 } from "./websocket.types";
 
-const DEFAULT_WS_URL =
-    (import.meta as any)?.env?.VITE_WS_URL ?? "ws://localhost:8081";
+
+const DEFAULT_WS_URL = import.meta.env.VITE_SOCKET_HOST ?? "ws://localhost:8081";
 
 export function useWebSocket(
     { onOpen, onClose, onError, onMessage }: UseWebSocketOptions = {},
