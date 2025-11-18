@@ -6,14 +6,11 @@ WORKDIR /app
 
 # Copia arquivos necessários para instalar as dependencia node_modules EM TEMPO DE BUILD
 COPY package*.json ./
-COPY _server.js ./
+COPY _worker.js ./
+COPY app/Jobs/ ./app/Jobs/   
 
 # Instala dependências + nodemon para "ouvir" as mudanças
 RUN npm install -g nodemon && npm install
 
-# Expõe a porta usada pelo Express (ajuste conforme necessário)
-# Foi comentado pois foi exposto no docker compose
-# EXPOSE 3000
-
 # Comando padrão ao iniciar o container
-ENTRYPOINT ["nodemon", "_server.js"]
+ENTRYPOINT ["node", "_worker.js"]

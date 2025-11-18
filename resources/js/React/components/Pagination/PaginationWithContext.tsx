@@ -1,23 +1,15 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
-import { PaginationProps, PaginationRef } from "./Pagination.types";
+import { forwardRef, useMemo } from "react";
+import { PaginationRef, PaginationWithContextProps } from "./Pagination.types";
+import { useProductsContext } from "../../providers/ProductProvider/productsHooks";
 
 
-export default forwardRef<PaginationRef, PaginationProps>(function Pagination({ data, onChange }, ref) {
+export default forwardRef<PaginationRef, PaginationWithContextProps>(function PaginationWithContext({ onChange }, ref) {
 
-    const [currentPage, setCurrentPage] = useState<number>(1);
+    const { state } = useProductsContext();
 
-    const [countPages, setCountPages] = useState<number>(0);
+    const page = (typeof state.data === "object") ? state.data.page : 1;
 
-    useEffect(() => {
-
-        if (!data || data === "error") {
-            return;
-        }
-        setCurrentPage(data.page);
-
-        setCountPages(data.totalPages);
-
-    }, [data]);
+    const countPages = (typeof state.data === "object") ? state.data.totalPages : 0;
 
     const pages = useMemo(() => {
         const out: number[] = [];
@@ -35,10 +27,10 @@ export default forwardRef<PaginationRef, PaginationProps>(function Pagination({ 
         <div className="pagination">
             <ul className="pagination justify-content-center">
                 {pages.map((p) => (
-                    <li key={p} className={`page-item ${p === currentPage ? "active" : ""}`}>
+                    <li key={p} className={`page-item ${p === page ? "active" : ""}`}>
                         <button
                             className="page-link"
-                            aria-current={p === currentPage ? "page" : undefined}
+                            aria-current={p === page ? "page" : undefined}
                             onClick={clickHandler(p)}
                         >
                             {p}

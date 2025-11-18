@@ -12,6 +12,6 @@ import initRelations from "./config/sequelize_relations.js";
 
     const commander = await createCommandManager(commandsDir);
 
-    commander.execute();
+    commander.execute();/*** */
 
 })();
