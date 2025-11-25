@@ -1,4 +1,4 @@
-# Aula 10 - React: Memorização, Interfaces Imperativas e Hooks Customizados <a name="unifaat-frontend-project"></a>
+# Aula 12 - Websockets <a name="unifaat-frontend-project"></a>
 
 ## 📑 Sumário
 

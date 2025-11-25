@@ -3,6 +3,8 @@ import { ComponentType } from 'react';
 import '@app/css/app.css';
 
 (async () => {
+
+    console.log(import.meta.env);
     const element = document.getElementById('app');
 
     if (element === null) {

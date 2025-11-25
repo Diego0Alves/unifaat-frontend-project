@@ -4,3 +4,7 @@ export type ProductListProps = {
     products: ListApi<ProductModel> | "error" | undefined;
     onDelete?: () => void;
 }
+
+export type ProductListWithContextProps = {
+    onDelete?: () => void;
+}

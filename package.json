@@ -1,11 +1,9 @@
 {
   "name": "unifaat-devweb-base-project",
   "version": "1.0.0",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "cli": "docker compose run --quiet-pull --rm node-cli-aula-14-container",
+    "start": "node _server.js",
+    "dev": "nodemon _server.js",
     "watch": "vite build --watch"
   },
   "type": "module",
@@ -13,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "amqplib": "^0.10.9",
     "axios": "^1.9.0",
     "bcrypt": "^6.0.0",
     "chalk": "^5.4.1",
@@ -27,7 +26,8 @@
     "pg": "^8.15.6",
     "sequelize": "^6.37.7",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",

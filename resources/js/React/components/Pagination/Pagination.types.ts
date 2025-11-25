@@ -5,5 +5,9 @@ export type PaginationProps = {
     onChange?: (page: number) => void;
 }
 
+export type PaginationWithContextProps = {
+    onChange?: (page: number) => void;
+}
+
 export type PaginationRef = {
 }

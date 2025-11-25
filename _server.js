@@ -14,7 +14,7 @@ app.use("/", routes);
 initRelations();
 
 const nodePort = process.env.NODE_PORT ?? 3000;
-
+/*** */
 /** Escolher as portas baseado se foi inicializado com ou sem nginx */
 const webPort = process.env.IS_CONTAINER ? 8080 : nodePort;
 

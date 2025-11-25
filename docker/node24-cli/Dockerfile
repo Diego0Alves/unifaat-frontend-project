@@ -6,14 +6,14 @@ WORKDIR /app
 
 # Copia apenas os arquivos essenciais para instalar dependências
 COPY package*.json ./
-COPY command ./
+COPY _command.js ./
 COPY app/Commands/ ./app/Commands/      
 
 # Instala dependências (e opcionalmente o minimist ou chalk se usados)
 RUN npm install
 
 # Dá permissão de execução para o script CLI (caso necessário)
-RUN chmod +x ./command
+RUN chmod +x ./_command.js
 
 # Define o entrypoint como o script de comandos (sem extensão)
-ENTRYPOINT ["node", "./command"]
+ENTRYPOINT ["node", "_command.js"]
