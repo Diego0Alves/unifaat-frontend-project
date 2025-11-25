@@ -4,5 +4,7 @@ export type ChatMessage = {
     text: string;
     self: boolean;
     from: string | null;
-    type: "system" | "message";
+    type: "system" | "message" | "reaction";
+    // quando type === 'reaction', reaction contém o emoji ou código da reação
+    reaction?: string | null;
 };

@@ -47,6 +47,19 @@ export default function Chat() {
                 return;
             }
 
+            if (data.type === "reaction") {
+                // exibe a reação como uma linha separada
+                const reactionText = `${data.reaction}`;
+                addMessage({
+                    text: reactionText,
+                    self: data.name === name,
+                    from: data.name,
+                    type: "reaction",
+                    reaction: data.reaction,
+                });
+                return;
+            }
+
             // caso venha algo inesperado
             addMessage({
                 text: String(lastMessage),
@@ -126,10 +139,46 @@ export default function Chat() {
                     </form>
                 ) : (
                     <>
-                        <div
-                            className="mb-3 border rounded p-2"
-                            style={{ maxHeight: 320, overflowY: "auto" }}
-                        >
+                        <div className="mb-3">
+                            <div className="d-flex gap-2 mb-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary btn-sm"
+                                    disabled={!joined || status !== "open"}
+                                    onClick={() => {
+                                        if (!joined) return;
+                                        sendMessage?.(
+                                            JSON.stringify({
+                                                type: "reaction",
+                                                name,
+                                                reaction: "✅", // aprovado
+                                            }),
+                                        );
+                                    }}
+                                >
+                                    ✅ Aprovar
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-danger btn-sm"
+                                    disabled={!joined || status !== "open"}
+                                    onClick={() => {
+                                        if (!joined) return;
+                                        sendMessage?.(
+                                            JSON.stringify({
+                                                type: "reaction",
+                                                name,
+                                                reaction: "❌", // reprovado
+                                            }),
+                                        );
+                                    }}
+                                >
+                                    ❌ Reprovar
+                                </button>
+                            </div>
+
+                            <div className="border rounded p-2" style={{ maxHeight: 320, overflowY: "auto" }}>
                             {messages.length === 0 && (
                                 <p className="text-muted text-center my-2">
                                     Nenhuma mensagem ainda.
@@ -149,19 +198,34 @@ export default function Chat() {
                                             "px-3 py-2 rounded-3 " +
                                             (m.type === "system"
                                                 ? "bg-light text-muted"
-                                                : m.self
-                                                    ? "bg-primary text-white"
-                                                    : "bg-white border")
+                                                : m.type === "reaction"
+                                                    ? m.self
+                                                        ? "bg-success text-white"
+                                                        : "bg-white border text-muted"
+                                                    : m.self
+                                                        ? "bg-primary text-white"
+                                                        : "bg-white border")
                                         }
+                                        style={m.type === "reaction" ? { maxWidth: 220 } : undefined}
                                     >
                                         <div className="small fw-semibold mb-1">
-                                            {m.type === "system"
-                                                ? "Sistema"
-                                                : m.self
-                                                    ? "Você"
-                                                    : m.from ?? "Usuário"}
+                                                    {m.type === "system"
+                                                        ? "Sistema"
+                                                        : m.type === "reaction"
+                                                            ? m.self
+                                                                ? "Você"
+                                                                : m.from ?? "Usuário"
+                                                            : m.self
+                                                                ? "Você"
+                                                                : m.from ?? "Usuário"}
                                         </div>
-                                        <div className="small">{m.text}</div>
+                                        <div className="small">
+                                            {m.type === "reaction" ? (
+                                                <span className="fw-bold">{m.reaction}</span>
+                                            ) : (
+                                                m.text
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}

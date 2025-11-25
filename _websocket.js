@@ -85,6 +85,18 @@ wss.on("connection", (ws) => {
             return;
         }
 
+        // reação rápida (ex: aprovado/reprovado)
+        if (data.type === "reaction" && data.name && data.reaction) {
+            // retransmite para todos os clientes preservando quem enviou e qual reação
+            broadcastJson({
+                type: "reaction",
+                name: data.name,
+                reaction: data.reaction,
+            });
+
+            return;
+        }
+
         console.log("Tipo de mensagem desconhecido:", data);
     });
 
