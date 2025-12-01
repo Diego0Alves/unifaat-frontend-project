@@ -9,6 +9,6 @@ export default {
 
     async handle() {
 
-        await FirstJob.dispatchSocket({ info: 'Dispatched to all!' });
+        await FirstJob.dispatchSocket({ info: 'Dispatched to all!', type: "message", name: "comando" });
     }
 }   
