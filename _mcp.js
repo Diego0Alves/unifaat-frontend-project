@@ -4,6 +4,7 @@ import "./bootstrap/app.js";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
+import http from "node:http";
 import express from "express";
 import { z } from "zod";
 
@@ -53,16 +54,17 @@ const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
 });
 
+// conecta MCP server ao transport
 await server.connect(transport);
 
-// ====================== HTTP (Express + Zod) ======================
+// ====================== HTTP SERVER ======================
 
 const app = express();
 const PORT = Number(process.env.MCP_PORT ?? 7777);
 
 app.use(express.json({ limit: "1mb" }));
 
-// JSON-RPC 2.0 bem mínimo
+// JSON-RPC 2.0 bem mínimo usando Zod
 const jsonRpcSchema = z.object({
     jsonrpc: z.literal("2.0"),
     id: z.union([z.string(), z.number(), z.null()]).optional(),
@@ -81,7 +83,7 @@ app.get("/health", (_req, res) => {
     res.json({ ok: true, mcp: server.name });
 });
 
-// endpoint MCP
+// endpoint MCP principal
 app.post("/", async (req, res) => {
     const parsed = jsonRpcSchema.safeParse(req.body ?? {});
 
@@ -94,7 +96,7 @@ app.post("/", async (req, res) => {
     const payload = parsed.data;
 
     try {
-        // req/res do Express ainda são os nativos do Node, o transport aceita
+        // Delega pro transport MCP
         await transport.handleRequest(req, res, payload);
     } catch (err) {
         console.error("[MCP] Erro ao tratar request MCP:", err);
@@ -111,7 +113,9 @@ app.use((_req, res) => {
     res.status(404).json(jsonRpcError(null, -32601, "Not found"));
 });
 
-// só Express, sem http.createServer
-app.listen(PORT, () => {
+// Sobe HTTP
+const serverHttp = http.createServer(app);
+
+serverHttp.listen(PORT, () => {
     console.log(`[MCP] MCP HTTP em http://127.0.0.1:${PORT}`);
 });
