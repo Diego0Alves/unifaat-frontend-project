@@ -4,9 +4,8 @@ import { getConnection } from "./config/rabbit.js"; // ajusta o caminho se preci
 
 const SOCKET_PORT = Number(process.env.SOCKET_PORT ?? 8081);
 
-// pega --exchange=room da CLI, se existir
-const exchangeArg = process.argv.find((arg) => arg.startsWith("--exchange="));
-const EXCHANGE_NAME = exchangeArg ? exchangeArg.split("=")[1] : "websocket";
+// definimos as duas salas/exchanges suportadas
+const EXCHANGES = ["sala_aula", "sala_trabalho"];
 
 const websocket = new WebSocketServer({ port: SOCKET_PORT });
 
@@ -27,66 +26,15 @@ async function setupRabbitWebsocketBridge() {
     try {
         const channel = await getConnection();
         rabbitChannel = channel;
-
-        // Exchange fanout compartilhada
-        await channel.assertExchange(EXCHANGE_NAME, "fanout", { durable: true });
-
-        // Fila EXCLUSIVA pra esse processo WS
-        const q = await channel.assertQueue("", {
-            exclusive: true,
-            durable: false,
-            autoDelete: true,
-        });
-
-        await channel.bindQueue(q.queue, EXCHANGE_NAME, "");
+        // cria ambos exchanges fanout
+        for (const ex of EXCHANGES) {
+            await channel.assertExchange(ex, "fanout", { durable: true });
+        }
 
         console.log(
             chalk.green(
-                `[Rabbit] WebSocket ligado no exchange "${EXCHANGE_NAME}" (fanout) com fila exclusiva "${q.queue}"`
+                `[Rabbit] WebSocket bridge pronto. Exchanges: ${EXCHANGES.join(", ")}`
             )
-        );
-
-        // Consumindo TUDO que vem do Rabbit e repassando pros clientes
-        channel.consume(
-            q.queue,
-            (msg) => {
-                if (!msg) return;
-
-                let data;
-                try {
-                    data = JSON.parse(msg.content.toString());
-                } catch {
-                    console.error("[Rabbit] Mensagem inválida:", msg.content.toString());
-                    channel.ack(msg);
-                    return;
-                }
-                data = data.payload ?? data;
-                console.log(data);
-                // Aqui definimos como isso vai aparecer pros clients
-                // data vem do próprio cliente (join/message) OU do evento de disconnect
-                if (data.type === "join" && data.name) {
-                    broadcastJson({
-                        type: "system",
-                        text: `${data.name} entrou no chat`,
-                    });
-                } else if (data.type === "leave" && data.name) {
-                    broadcastJson({
-                        type: "system",
-                        text: `${data.name} saiu do chat`,
-                    });
-                } else if (data.type === "message" && data.name && data.text) {
-                    broadcastJson({
-                        type: "message",
-                        name: data.name,
-                        text: data.text,
-                    });
-                } else {
-                    console.log("[Rabbit] Tipo desconhecido vindo da fila:", data);
-                }
-
-                channel.ack(msg);
-            },
-            { noAck: false }
         );
     } catch (err) {
         console.error(chalk.red("[Rabbit] Erro no bridge Rabbit -> WS:"), err);
@@ -96,23 +44,28 @@ async function setupRabbitWebsocketBridge() {
 setupRabbitWebsocketBridge();
 
 // helper pra publicar no exchange
-function publishToRabbit(payload) {
+// publica em um exchange específico
+function publishToRabbit(exchange, payload) {
     if (!rabbitChannel) {
         console.warn("[Rabbit] Canal ainda não pronto, ignorando mensagem:", payload);
         return;
     }
 
-    rabbitChannel.publish(
-        EXCHANGE_NAME,
-        "", // routingKey ignorada em fanout
-        Buffer.from(JSON.stringify(payload))
-    );
+    if (!EXCHANGES.includes(exchange)) {
+        console.warn("[Rabbit] Exchange desconhecido:", exchange);
+        return;
+    }
+
+    rabbitChannel.publish(exchange, "", Buffer.from(JSON.stringify(payload)));
 }
 
 // --- WebSocket ---
 
 websocket.on("connection", (ws) => {
     console.log(chalk.cyan("Cliente conectado.."));
+    // cada cliente mantém referência à sua fila de consumo e sala atual
+    ws._rabbitQueue = null;
+    ws._room = null;
 
     ws.on("message", (raw) => {
         const text = raw.toString();
@@ -129,11 +82,78 @@ websocket.on("connection", (ws) => {
         // 👉 AGORA: nada de broadcast direto.
         // Tudo que vier do client vai pra fila.
 
-        if (data.type === "join" && data.name) {
+        // esperamos que cliente envie também o campo `room` indicando a sala
+        if (data.type === "join" && data.name && data.room) {
             ws.userName = data.name;
+            const room = String(data.room);
 
-            // manda evento de "join" pra fila
-            publishToRabbit({
+            // se já havia uma fila anterior, limpa
+            if (ws._rabbitQueue) {
+                try {
+                    rabbitChannel.cancel(ws._rabbitQueue.consumerTag).catch(() => {});
+                } catch {}
+                ws._rabbitQueue = null;
+            }
+
+            // cria fila exclusiva e faz bind no exchange da sala
+            (async () => {
+                try {
+                    const q = await rabbitChannel.assertQueue("", {
+                        exclusive: true,
+                        durable: false,
+                        autoDelete: true,
+                    });
+
+                    if (!EXCHANGES.includes(room)) {
+                        console.warn("Sala desconhecida pedida pelo cliente:", room);
+                    }
+
+                    await rabbitChannel.bindQueue(q.queue, room, "");
+
+                    const consumeOk = await rabbitChannel.consume(
+                        q.queue,
+                        (msg) => {
+                            if (!msg) return;
+                            let payload;
+                            try {
+                                payload = JSON.parse(msg.content.toString());
+                            } catch {
+                                rabbitChannel.ack(msg);
+                                return;
+                            }
+                            payload = payload.payload ?? payload;
+
+                            // envia apenas para este cliente
+                            try {
+                                ws.send(JSON.stringify(
+                                    payload.type === "join" && payload.name
+                                        ? { type: "system", text: `${payload.name} entrou no chat` }
+                                        : payload.type === "leave" && payload.name
+                                            ? { type: "system", text: `${payload.name} saiu do chat` }
+                                            : payload.type === "message" && payload.name && payload.text
+                                                ? { type: "message", name: payload.name, text: payload.text }
+                                                : payload
+                                ));
+                            } catch (e) {
+                                // ignore send errors
+                            }
+
+                            rabbitChannel.ack(msg);
+                        },
+                        { noAck: false }
+                    );
+
+                    ws._rabbitQueue = { name: q.queue, consumerTag: consumeOk.consumerTag };
+                    ws._room = room;
+
+                    console.log(chalk.green(`[Rabbit] Cliente bindado na sala "${room}" fila "${q.queue}"`));
+                } catch (err) {
+                    console.error("Erro ao preparar fila do cliente:", err);
+                }
+            })();
+
+            // publica evento join apenas na sala escolhida
+            publishToRabbit(data.room, {
                 type: "join",
                 name: data.name,
             });
@@ -141,9 +161,9 @@ websocket.on("connection", (ws) => {
             return;
         }
 
-        if (data.type === "message" && data.name && data.text) {
-            // mensagem normal: também vai pra fila
-            publishToRabbit({
+        if (data.type === "message" && data.name && data.text && data.room) {
+            // publica no exchange da sala indicada
+            publishToRabbit(data.room, {
                 type: "message",
                 name: data.name,
                 text: data.text,
@@ -158,16 +178,22 @@ websocket.on("connection", (ws) => {
     ws.on("close", () => {
         console.log(chalk.gray("Cliente desconectado."));
         if (ws.userName) {
-            publishToRabbit({
-                type: "leave",
-                name: ws.userName,
-            });
+            // publica leave na sala do cliente, se existir
+            if (ws._room) {
+                publishToRabbit(ws._room, {
+                    type: "leave",
+                    name: ws.userName,
+                });
+            }
+        }
+        // tenta cancelar consumo e remover fila
+        if (ws._rabbitQueue && rabbitChannel) {
+            try {
+                rabbitChannel.cancel(ws._rabbitQueue.consumerTag).catch(() => {});
+            } catch {}
+            ws._rabbitQueue = null;
         }
     });
 });
 
-console.log(
-    chalk.greenBright(
-        `WebSocket rodando na porta ${SOCKET_PORT} usando exchange "${EXCHANGE_NAME}"...`
-    )
-);
+console.log(chalk.greenBright(`WebSocket rodando na porta ${SOCKET_PORT}...`));

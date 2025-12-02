@@ -14,6 +14,7 @@ export default function Chat() {
 
     const [name, setName] = useState("");
     const [joined, setJoined] = useState(false);
+    const [room, setRoom] = useState("sala_aula");
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -85,6 +86,7 @@ export default function Chat() {
             JSON.stringify({
                 type: "join",
                 name: trimmed,
+                room,
             }),
         );
     };
@@ -99,6 +101,7 @@ export default function Chat() {
                 type: "message",
                 name,
                 text: trimmed,
+                room,
             }),
         );
     };
@@ -133,6 +136,14 @@ export default function Chat() {
                             />
                         </div>
 
+                        <div className="mb-3">
+                            <label className="form-label">Sala</label>
+                            <select className="form-select" value={room} onChange={(e) => setRoom(e.target.value)}>
+                                <option value="sala_aula">Sala: Aula</option>
+                                <option value="sala_trabalho">Sala: Trabalho</option>
+                            </select>
+                        </div>
+
                         <button
                             type="submit"
                             className="btn btn-primary"
@@ -143,6 +154,7 @@ export default function Chat() {
                     </form>
                 ) : (
                     <>
+                        <p className="mb-2"><strong>Sala atual:</strong> {room}</p>
                         <div
                             className="mb-3 border rounded p-2"
                             style={{ maxHeight: 320, overflowY: "auto" }}
